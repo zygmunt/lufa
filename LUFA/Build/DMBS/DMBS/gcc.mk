@@ -36,6 +36,12 @@ DEBUG_LEVEL        ?= 2
 LINKER_RELAXATIONS ?= Y
 JUMP_TABLES        ?= N
 LTO                ?= N
+CC                 ?= gcc
+CXX                ?= g++
+
+ifeq ($(CC), cc)
+    CC = gcc
+endif
 
 # Sanity check user supplied values
 $(foreach MANDATORY_VAR, $(DMBS_BUILD_MANDATORY_VARS), $(call ERROR_IF_UNSET, $(MANDATORY_VAR)))
@@ -110,8 +116,8 @@ DEPENDENCY_FILES := $(OBJECT_FILES:%.o=%.d)
 # Create a list of common flags to pass to the compiler/linker/assembler
 BASE_CC_FLAGS    := -pipe -g$(DEBUG_FORMAT) -g$(DEBUG_LEVEL)
 ifneq ($(findstring $(ARCH), AVR8 XMEGA),)
-   BASE_C_FLAGS += -fpack-struct
-   BASE_CC_FLAGS += -mmcu=$(MCU) -fshort-enums -fno-inline-small-functions
+   BASE_CC_FLAGS += -mmcu=$(MCU) -fshort-enums -fno-inline-small-functions 
+   # -fpack-struct
 else ifneq ($(findstring $(ARCH), UC3),)
    BASE_CC_FLAGS += -mpart=$(MCU:at32%=%) -masm-addr-pseudos
 endif
@@ -165,7 +171,7 @@ endif
 build_begin:
 	@echo $(MSG_INFO_MESSAGE) Begin compilation of project \"$(TARGET)\"...
 	@echo ""
-	@$(CROSS)-gcc --version
+	@$(CROSS)-$(CC) --version
 
 # Post-build informational target, to project name information when building has completed
 build_end:
@@ -213,27 +219,27 @@ $(SRC):
 # Compiles an input C source file and generates an assembly listing for it
 %.s: %.c $(MAKEFILE_LIST)
 	@echo $(MSG_COMPILE_CMD) Generating assembly from C file \"$(notdir $<)\"
-	$(CROSS)-gcc -S $(BASE_CC_FLAGS) $(BASE_C_FLAGS) $(CC_FLAGS) $(C_FLAGS) $($(notdir $<)_FLAGS) $< -o $@
+	$(CROSS)-$(CC) -S $(BASE_CC_FLAGS) $(BASE_C_FLAGS) $(CC_FLAGS) $(C_FLAGS) $($(notdir $<)_FLAGS) $< -o $@
 
 # Compiles an input C++ source file and generates an assembly listing for it
 %.s: %.cpp $(MAKEFILE_LIST)
 	@echo $(MSG_COMPILE_CMD) Generating assembly from C++ file \"$(notdir $<)\"
-	$(CROSS)-gcc -S $(BASE_CC_FLAGS) $(BASE_CPP_FLAGS) $(CC_FLAGS) $(CPP_FLAGS) $($(notdir $<)_FLAGS) $< -o $@
+	$(CROSS)-$(CXX) -S $(BASE_CC_FLAGS) $(BASE_CPP_FLAGS) $(CC_FLAGS) $(CPP_FLAGS) $($(notdir $<)_FLAGS) $< -o $@
 
 # Compiles an input C source file and generates a linkable object file for it
 $(OBJDIR)/%.o: %.c $(MAKEFILE_LIST)
 	@echo $(MSG_COMPILE_CMD) Compiling C file \"$(notdir $<)\"
-	$(CROSS)-gcc -c $(BASE_CC_FLAGS) $(BASE_C_FLAGS) $(CC_FLAGS) $(C_FLAGS) $($(notdir $<)_FLAGS) -MMD -MP -MF $(@:%.o=%.d) $< -o $@
+	$(CROSS)-$(CC) -c $(BASE_CC_FLAGS) $(BASE_C_FLAGS) $(CC_FLAGS) $(C_FLAGS) $($(notdir $<)_FLAGS) -MMD -MP -MF $(@:%.o=%.d) $< -o $@
 
 # Compiles an input C++ source file and generates a linkable object file for it
 $(OBJDIR)/%.o: %.cpp $(MAKEFILE_LIST)
 	@echo $(MSG_COMPILE_CMD) Compiling C++ file \"$(notdir $<)\"
-	$(CROSS)-gcc -c $(BASE_CC_FLAGS) $(BASE_CPP_FLAGS) $(CC_FLAGS) $(CPP_FLAGS) $($(notdir $<)_FLAGS) -MMD -MP -MF $(@:%.o=%.d) $< -o $@
+	$(CROSS)-$(CXX) -c $(BASE_CC_FLAGS) $(BASE_CPP_FLAGS) $(CC_FLAGS) $(CPP_FLAGS) $($(notdir $<)_FLAGS) -MMD -MP -MF $(@:%.o=%.d) $< -o $@
 
 # Assembles an input ASM source file and generates a linkable object file for it
 $(OBJDIR)/%.o: %.S $(MAKEFILE_LIST)
 	@echo $(MSG_ASSEMBLE_CMD) Assembling \"$(notdir $<)\"
-	$(CROSS)-gcc -c $(BASE_CC_FLAGS) $(BASE_ASM_FLAGS) $(CC_FLAGS) $(ASM_FLAGS) $($(notdir $<)_FLAGS) -MMD -MP -MF $(@:%.o=%.d) $< -o $@
+	$(CROSS)-$(CC) -c $(BASE_CC_FLAGS) $(BASE_ASM_FLAGS) $(CC_FLAGS) $(ASM_FLAGS) $($(notdir $<)_FLAGS) -MMD -MP -MF $(@:%.o=%.d) $< -o $@
 
 # Generates a library archive file from the user application, which can be linked into other applications
 .PRECIOUS  : $(OBJECT_FILES)
@@ -248,7 +254,7 @@ $(OBJDIR)/%.o: %.S $(MAKEFILE_LIST)
 .SECONDARY : %.elf
 %.elf: $(OBJECT_FILES)
 	@echo $(MSG_LINK_CMD) Linking object files into \"$@\"
-	$(CROSS)-gcc $^ -o $@ $(BASE_LD_FLAGS) $(LD_FLAGS)
+	$(CROSS)-$(CC) $^ -o $@ $(BASE_LD_FLAGS) $(LD_FLAGS)
 
 # Extracts out the loadable FLASH memory data from the project ELF file, and creates an Intel HEX format file of it
 %.hex: %.elf
